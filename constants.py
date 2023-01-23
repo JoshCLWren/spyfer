@@ -36,3 +36,14 @@ RED = "\033[91m"
 BLUE = "\033[94m"
 YELLOW = "\033[93m"
 END = "\033[0m"
+
+
+def all_words():
+    words_list = []
+    with open("english.txt", "r") as f:
+        words_list.extend(line.strip() for line in f)
+    return words_list
+
+
+# create a list of all strings in english.txt
+WORDS = all_words()
