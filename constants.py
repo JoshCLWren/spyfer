@@ -47,3 +47,5 @@ def all_words():
 
 # create a list of all strings in english.txt
 WORDS = all_words()
+
+COUNTRY_DESCRIPTIONS = ["beautiful", "breezy", "balmy", "sticky"]
