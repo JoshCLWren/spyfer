@@ -6,218 +6,79 @@ Pick a cipher and encode the message. The computer will try and decode it.
 """
 
 import random
-import string
 import sys
-import time
-from dataclasses import dataclass
-from typing import List, Tuple
 
 import art
 import pandas as pd
 import pycountry
-import requests
 from faker import Faker
 
-import ciphers
-import ciphers.atbash as atbash
-import ciphers.baconian as baconian
-import ciphers.caesar as caesar
 import ciphers.vigenere as vigenere
 import constants
+from enemy import BruteForceGuesser
+from insults import get_insult, insults
+from player import Player
+from puzzle import possible_words
+from utilities import delay_print, fibonacci
 
 fake = Faker()
 
-import itertools
 
-insults = pd.read_csv("insults.csv")
+class Menu:
+    """Menu class for the game."""
 
+    def __init__(self):
+        self.kanye_quotes = pd.read_csv("kanye_quotes.csv")
+        self.starting_location = pycountry.countries.get(alpha_2="US").name
 
-def get_insult(insults):
-    return insults.sample().iloc[0]["insult"]
-
-
-def fibonacci(n):
-    a, b = 0, 1
-    for _ in range(n):
-        a, b = b, a + b
-    return a
-
-
-class BruteForceGuesser:
-    def __init__(self, string_to_guess, charset, attempts, location):
-        self.string_to_guess = string_to_guess
-        self.charset = charset
-        self.attempts = attempts
-        self.possibilities = possible_words(location, len(self.string_to_guess))
-
-    def guess(self):
-        """
-        Make n amounts of random guesses from Possibilities to try and guess the string to guess
-        """
-        delay_print(
-            "It is I, Vigenere, the great cipher. I will try and guess your message."
+    def player_introduction(self):
+        """Start the game."""
+        delay_print(art.text2art("Spyfer, a 'game'.", font="cybermedium"))
+        art.tprint(
+            f"Welcome to the {random.choice(constants.COUNTRY_DESCRIPTIONS)} {location}!",
         )
+        fake_name = fake.name()
         delay_print(
-            f"First I will guess your weight in pounds, are you {random.randint(250,400)}lbs?"
+            f"What's your name? press enter to go with {fake_name}. You look like a {fake_name}.",
+            color=constants.GREEN,
         )
-        delay_print(
-            f"Next I will guess your age, are you {random.randint(20,40)} years old?"
-        )
-        delay_print(
-            f"Next I will guess your height in inches, are you {random.randint(60,80)} inches tall?"
-        )
-        delay_print(f"Is your name {fake.name()}?")
-        delay_print(f"Is your address {fake.address()}?")
-        delay_print(f"Is your email {fake.email()}?")
-        delay_print(f"Is your phone number {fake.phone_number()}?")
-        delay_print(f"Is your credit card number {fake.credit_card_number()}?")
-        delay_print(f"Is your SSN {fake.ssn()}?")
-        delay_print(f"Is your username {fake.user_name()}?")
-        delay_print(f"Is your password {fake.password()}?")
-        delay_print(f"Is your job {fake.job()}?")
-        delay_print(f"Is your company {fake.company()}?")
-        delay_print(f"Is your country {fake.country()}?")
-        delay_print(f"Is your city {fake.city()}?")
-        delay_print(f"Is your state {fake.state()}?")
-        delay_print(f"Is your zipcode {fake.zipcode()}?")
-        delay_print(f"Is your license plate {fake.license_plate()}?")
-        delay_print(f"Agent, there are only {len(self.possibilities)} possibilities.")
-        delay_print("I will try and guess the message.")
-
-        for _ in range(self.attempts):
-            guess = random.choice(self.possibilities)
-            delay_print(f"I'm guessing {guess}")
-            if guess == self.string_to_guess:
-                delay_print("I guessed it!")
-                return True
-        delay_print("I couldn't guess it.")
-        return False
-
-
-def possible_words(location, length_of_word):
-    """
-    Find the all the words that both only use characters
-    in the location and are the same length as the string to guess
-    That are in english.txt
-    """
-    with open("english.txt") as f:
-        english_words = f.read().splitlines()
-
-    return [
-        word
-        for word in english_words
-        if all(char in location for char in word) and len(word) == length_of_word
-    ]
-
-
-def simple_decrypt(i, ciphertext):
-    """Brute force decryption of ciphertext using Atbash/Caesar cipher"""
-    plaintext = "".join(
-        chr((ord(char) - i - ord("a")) % 26 + ord("a")) if char.isalpha() else char
-        for char in ciphertext
-    )
-    delay_print(f"Guess #{str(i + 1)} is it {plaintext}?")
-    return plaintext
-
-
-def decrypt_bacon(ciphertext):
-    """Brute force decryption of ciphertext using Baconian cipher"""
-
-    plaintext = ""
-    for i in range(0, len(ciphertext), 5):
-        letter = ciphertext[i : i + 5]
-        if letter in constants.BACON_DICT:
-            plaintext += constants.BACON_DICT[letter]
-    delay_print("Plaintext:", plaintext)
-    return plaintext
-
-
-class Player:
-    def __init__(self, name, location):
-        self.score = 0
-        self.level = 1
-        self.respect = 3
-        self.name = name
-        self.adjective = get_insult(insults)
-        self.location = location
-
-    def lose_respect(self):
-        self.respect -= 1
-        if self.respect == 0:
-            delay_print("I've lost all confidence in you!")
+        name = input() or fake_name
+        if name.lower() in "kanye west":
+            delay_print(
+                "Nice Try KANYE! You're the bad guy in this game go play something else!"
+            )
             sys.exit()
-        else:
-            delay_print(f"You have {self.respect} respect left with me.")
 
-    def change_adjective(self):
-        self.adjective = get_insult(insults)
-        delay_print(f"You are now {self.adjective}.")
-
-    def level_up(self):
-        self.level += 1
-        self.change_adjective()
-        delay_print(f"You are now level {self.level}.")
-
-
-def delay_print(*args, delay=0.01, color=None):
-    """
-    Print to stdout one character at a time like a typewriter with a delay between each character
-    in the color specified.
-    """
-    if color:
-        print(color, end="")
-
-    for arg in args:
-        for char in arg:
-            sys.stdout.write(char)
-            sys.stdout.flush()
-            time.sleep(delay)
-    print()
+        player = Player(name, location)
+        delay_print(f"Welcome to the mission, {player.name}!")
+        delay_print(f"According to our records, you are a {player.adjective}spy.")
+        delay_print(f"I respect you, {player.name}.")
+        delay_print(f"You currently have {player.respect} respect with me.")
+        delay_print(
+            "You have been tasked with encoding and sending a series of messages by everybody's failed government "
+            "experiment gone rogue: Kanye West.",
+            color=constants.RED,
+        )
+        delay_print("Kanye West has -1 respect with me.", color=constants.RED)
+        delay_print("You have three lives to live.", delay=0.10, color=constants.GREEN)
+        menu_options(
+            f"This is not a {get_insult(insults)}communication channel. Do not use it for anything important.",
+            "The Evil Vigenere AI has gained sentience and is hot on our trails.",
+            "Pick a cipher and encode the message. The AI will try and decode it.",
+        )
+        instructions(
+            "The lower the score, the better.",
+            "You have 10 attempts to get the correct answer.",
+            "Decode your first message.",
+        )
+        return player
 
 
 def main():
     """The main function."""
-    kanye_quotes = pd.read_csv("kanye_quotes.csv")
+    menu = Menu()
+    player = menu.player_introduction()
 
-    location = pycountry.countries.get(alpha_2="US").name
-    delay_print(art.text2art("Spyfer, a 'game'.", font="cybermedium"))
-    art.tprint(
-        f"Welcome to the {random.choice(constants.COUNTRY_DESCRIPTIONS)} {location}!",
-    )
-    fake_name = fake.name()
-    delay_print(
-        f"What's your name? press enter to go with {fake_name}. You look like a {fake_name}.",
-        color=constants.GREEN,
-    )
-    name = input() or fake_name
-    if name.lower() in "kanye west":
-        delay_print(
-            "Nice Try KANYE! You're the bad guy in this game go play something else!"
-        )
-        sys.exit()
-
-    player = Player(name, location)
-    delay_print(f"Welcome to the mission, {player.name}!")
-    delay_print(f"According to our records, you are a {player.adjective}spy.")
-    delay_print(f"I respect you, {player.name}.")
-    delay_print(f"You currently have {player.respect} respect with me.")
-    delay_print(
-        "You have been tasked with encoding and sending a series of messages by everybody's failed government "
-        "experiment gone rogue: Kanye West.",
-        color=constants.RED,
-    )
-    delay_print("Kanye West has -1 respect with me.", color=constants.RED)
-    delay_print("You have three lives to live.", delay=0.10, color=constants.GREEN)
-    menu_options(
-        f"This is not a {get_insult(insults)}communication channel. Do not use it for anything important.",
-        "The Evil Vigenere AI has gained sentience and is hot on our trails.",
-        "Pick a cipher and encode the message. The AI will try and decode it.",
-    )
-    instructions(
-        "The lower the score, the better.",
-        "You have 10 attempts to get the correct answer.",
-        "Decode your first message.",
-    )
     while player.respect > 0:
         message, password, points, score = begin_round(kanye_quotes, player)
         if not password:
